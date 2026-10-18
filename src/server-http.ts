@@ -31,16 +31,22 @@ export interface HttpServerOptions {
   authToken: string;
   port?: number;
   host?: string;
+  /**
+   * One fresh McpServer + transport per request, no mcp-session-id. For
+   * serverless hosts (Vercel) where consecutive requests land on different
+   * instances and an in-memory session map can't be relied on.
+   */
+  stateless?: boolean;
 }
 
-export async function startHttpServer(client: WhoopClient, opts: HttpServerOptions): Promise<void> {
+/** Builds the Express app (auth, OAuth, /health, /mcp) without binding a port. */
+export function createHttpApp(client: WhoopClient, opts: HttpServerOptions): express.Express {
   if (!opts.authToken || opts.authToken.length < 16) {
     throw new Error(
       "MCP_AUTH_TOKEN must be set and at least 16 chars. Generate one with `openssl rand -hex 32`.",
     );
   }
   const port = opts.port ?? Number(process.env.PORT ?? process.env.MCP_HTTP_PORT ?? 3000);
-  const host = opts.host ?? "0.0.0.0";
   const password = process.env.AUTH_PASSWORD ?? "";
   // `||` not `??`: an empty PUBLIC_URL (e.g. a host that injects "" for an unset
   // var, or the first-pass deploy on Railway/Cloud Run before the real URL
@@ -72,15 +78,17 @@ export async function startHttpServer(client: WhoopClient, opts: HttpServerOptio
   // this sweep the map grows one McpServer + full tool registration at a time
   // until the host OOMs. Seen in production on a 256 MB VM: ~3 days to SIGKILL.
   const SESSION_IDLE_MS = 30 * 60_000;
-  const sweep = setInterval(() => {
-    const cutoff = Date.now() - SESSION_IDLE_MS;
-    for (const [id, entry] of [...sessions]) {
-      if (entry.lastSeen > cutoff) continue;
-      sessions.delete(id);
-      void entry.transport.close().catch(() => undefined);
-    }
-  }, 5 * 60_000);
-  sweep.unref();
+  if (!opts.stateless) {
+    const sweep = setInterval(() => {
+      const cutoff = Date.now() - SESSION_IDLE_MS;
+      for (const [id, entry] of [...sessions]) {
+        if (entry.lastSeen > cutoff) continue;
+        sessions.delete(id);
+        void entry.transport.close().catch(() => undefined);
+      }
+    }, 5 * 60_000);
+    sweep.unref();
+  }
 
   async function getOrCreateSession(existingSessionId: string | undefined): Promise<Session> {
     if (existingSessionId) {
@@ -229,7 +237,35 @@ export async function startHttpServer(client: WhoopClient, opts: HttpServerOptio
     resourceMetadataUrl: `${publicUrl.replace(/\/$/, "")}/.well-known/oauth-protected-resource/mcp`,
   });
 
+  const statelessHandler = async (req: Request, res: Response): Promise<void> => {
+    if (req.method !== "POST") {
+      res.status(405).json({
+        jsonrpc: "2.0",
+        error: { code: -32000, message: "Method not allowed (stateless server: POST only)." },
+        id: null,
+      });
+      return;
+    }
+    try {
+      const server = new McpServer({ name: "totem", version: "1.5.1" });
+      registerTools(server, client);
+      const transport = new StreamableHTTPServerTransport({
+        enableJsonResponse: true,
+      });
+      res.on("close", () => {
+        void transport.close().catch(() => undefined);
+        void server.close().catch(() => undefined);
+      });
+      await server.connect(transport as Parameters<typeof server.connect>[0]);
+      await transport.handleRequest(req, res, req.body);
+    } catch (err) {
+      console.error("[totem] request error:", err);
+      if (!res.headersSent) res.status(500).json({ error: "internal server error" });
+    }
+  };
+
   const mcpHandler = async (req: Request, res: Response): Promise<void> => {
+    if (opts.stateless) return statelessHandler(req, res);
     try {
       const sessionIdHeader = req.headers["mcp-session-id"];
       const sid = typeof sessionIdHeader === "string" ? sessionIdHeader : undefined;
@@ -245,6 +281,15 @@ export async function startHttpServer(client: WhoopClient, opts: HttpServerOptio
   app.get("/mcp", bearer, (req, res) => void mcpHandler(req, res));
   app.delete("/mcp", bearer, (req, res) => void mcpHandler(req, res));
 
+  return app;
+}
+
+export async function startHttpServer(client: WhoopClient, opts: HttpServerOptions): Promise<void> {
+  const app = createHttpApp(client, opts);
+  const port = opts.port ?? Number(process.env.PORT ?? process.env.MCP_HTTP_PORT ?? 3000);
+  const host = opts.host ?? "0.0.0.0";
+  const publicUrl = process.env.PUBLIC_URL || `http://localhost:${port}`;
+  const oauthEnabled = (process.env.AUTH_PASSWORD ?? "").length > 0;
   const httpServer = app.listen(port, host, () => {
     console.error(`[totem] listening on ${publicUrl} (bound ${host}:${port})`);
     console.error(`[totem] health: GET /health`);
