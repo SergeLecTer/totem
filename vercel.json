@@ -9,5 +9,5 @@
     "api/sync-journal.js": { "maxDuration": 60, "includeFiles": "dist/**" }
   },
   "rewrites": [{ "source": "/((?!api/).*)", "destination": "/api" }],
-  "crons": [{ "path": "/api/sync-journal", "schedule": "0 4 * * *" }]
+  "crons": [{ "path": "/api/sync-journal", "schedule": "0 9 * * *" }]
 }
