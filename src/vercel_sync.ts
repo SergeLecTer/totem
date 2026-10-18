@@ -1,21 +1,13 @@
 // Vercel function body for GET /api/sync-journal (called daily by Vercel Cron).
 // Auth: `Authorization: Bearer <CRON_SECRET>` (what Vercel Cron sends) or
 // `Bearer <MCP_AUTH_TOKEN>` for manual runs. Optional `?days=N` (1-31, default 7).
-import { timingSafeEqual } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { buildRuntime } from "./runtime.js";
 import { PgJournalStore, syncJournal } from "./journal_sync.js";
+import { bearerToken, matchesSecret } from "./lib/secret.js";
 
 const DEFAULT_DAYS = 7;
 const MAX_DAYS = 31;
-
-function sameSecret(given: string, expected: string | undefined): boolean {
-  // Unset or still the "CHANGE_ME…" placeholder from the project setup: never valid.
-  if (!expected || expected.startsWith("CHANGE_ME")) return false;
-  const a = Buffer.from(given);
-  const b = Buffer.from(expected);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
 
 function send(res: ServerResponse, status: number, body: unknown): void {
   res.statusCode = status;
@@ -24,9 +16,8 @@ function send(res: ServerResponse, status: number, body: unknown): void {
 }
 
 export default async function handler(req: IncomingMessage, res: ServerResponse): Promise<void> {
-  const header = req.headers.authorization ?? "";
-  const token = header.startsWith("Bearer ") ? header.slice(7) : "";
-  if (!token || !(sameSecret(token, process.env.CRON_SECRET) || sameSecret(token, process.env.MCP_AUTH_TOKEN))) {
+  const token = bearerToken(req.headers.authorization);
+  if (!(matchesSecret(token, process.env.CRON_SECRET) || matchesSecret(token, process.env.MCP_AUTH_TOKEN))) {
     send(res, 401, { error: "unauthorized" });
     return;
   }

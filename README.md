@@ -418,6 +418,20 @@ All of the above is what `totem cloud` automates for you — the manual steps he
 
 ---
 
+## Journal read API (Vercel + Postgres)
+
+On the Vercel deployment, `/api/sync-journal` copies the Whoop journal into Postgres (`whoop_journal_entries`, `whoop_journal_behaviours`). `GET /api/journal` serves those stored days read-only to other apps, without touching Whoop.
+
+```bash
+curl -H "Authorization: Bearer $READ_API_KEY" \
+  "https://<your-app>.vercel.app/api/journal?from=2026-10-12&to=2026-10-18"
+```
+
+- **Auth:** `READ_API_KEY` (16+ chars, set it in the Vercel project's Environment Variables). It is separate from `MCP_AUTH_TOKEN` and `CRON_SECRET`, so it can only read this data.
+- **Query:** `from`, `to` (`YYYY-MM-DD`, inclusive, at most 92 days). Without them you get the latest 7 synced days.
+- **Response:** `{from, to, days: [{date, cycle_id, journal_entry_id, notes, synced_at, behaviors: [{behavior_tracker_id, title, category, internal_name, answered_yes, magnitude_value, magnitude_label, recorded_at}]}]}`, newest day first.
+- **Errors:** `401` missing or wrong key, `405` anything but GET, `400` bad dates or a range over 92 days.
+
 ## The `totem` CLI
 
 `totem` is the single entry point for everything — there are no `npm run` scripts. It works from any directory (it resolves its own install path), so `totem deploy` from `~/Desktop` does the same thing as `cd totem && fly deploy`.
