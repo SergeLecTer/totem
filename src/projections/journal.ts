@@ -38,9 +38,15 @@ export function projectJournal(raw: unknown, date: string): JournalOutT {
       const id = asNumber(input.behavior_tracker_id ?? (tracker ? tracker.id : undefined) ?? i.behavior_id);
       if (id === null) return null;
       const meta = BEHAVIORS_BY_ID.get(id);
+      // Prefer the text Whoop sends with the entry (it can differ from the
+      // bundled catalog, e.g. a custom question); fall back to the catalog.
+      const whoopQuestion = asString(tracker?.question_text)?.trim() || null;
+      const question = whoopQuestion ?? meta?.question ?? null;
       return {
         behavior_tracker_id: id,
         title: meta?.title ?? asString(tracker?.title) ?? "",
+        question,
+        question_source: whoopQuestion !== null ? ("whoop" as const) : meta?.question ? ("catalog" as const) : null,
         category: meta?.category ?? asString(tracker?.category) ?? "",
         internal_name: meta?.internal_name ?? asString(tracker?.internal_name) ?? "",
         answered_yes: asBool(input.answered_yes),

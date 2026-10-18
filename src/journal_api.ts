@@ -43,6 +43,8 @@ export function parseRange(
 export interface JournalBehaviorRow {
   behavior_tracker_id: number;
   title: string;
+  question: string | null;
+  question_source: "whoop" | "catalog" | null;
   category: string;
   internal_name: string;
   answered_yes: boolean | null;
@@ -79,6 +81,8 @@ export async function fetchJournalDays(sql: Sql, range: DateRange): Promise<Jour
           json_build_object(
             'behavior_tracker_id', b.behavior_tracker_id,
             'title', b.title,
+            'question', b.question,
+            'question_source', b.question_source,
             'category', b.category,
             'internal_name', b.internal_name,
             'answered_yes', b.answered_yes,

@@ -429,7 +429,7 @@ curl -H "Authorization: Bearer $TOTEM_READ_API_KEY" \
 
 - **Auth:** `TOTEM_READ_API_KEY` (16+ chars, set it as a Shared Environment Variable in Vercel (Team Settings → Environment Variables) and link it to the project). It is separate from `MCP_AUTH_TOKEN` and `CRON_SECRET`, so it can only read this data.
 - **Query:** `from`, `to` (`YYYY-MM-DD`, inclusive, at most 92 days). Without them you get the latest 7 synced days.
-- **Response:** `{from, to, days: [{date, cycle_id, journal_entry_id, notes, synced_at, behaviors: [{behavior_tracker_id, title, category, internal_name, answered_yes, magnitude_value, magnitude_label, recorded_at}]}]}`, newest day first.
+- **Response:** `{from, to, days: [{date, cycle_id, journal_entry_id, notes, synced_at, behaviors: [{behavior_tracker_id, title, question, question_source, category, internal_name, answered_yes, magnitude_value, magnitude_label, recorded_at}]}]}`, newest day first. `question` is the question text from Whoop's own response when it sends one (`question_source: "whoop"`), otherwise the bundled catalog's (`"catalog"`), or `null` for a behavior neither knows.
 - **Errors:** `401` missing or wrong key, `405` anything but GET, `400` bad dates or a range over 92 days.
 
 ## The `totem` CLI
