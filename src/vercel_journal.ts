@@ -1,6 +1,6 @@
 // Vercel function body for GET /api/journal: read-only access to the journal
 // days stored by the sync, for third-party apps.
-// Auth: `Authorization: Bearer <READ_API_KEY>` (16+ chars; a dedicated key, so it
+// Auth: `Authorization: Bearer <TOTEM_READ_API_KEY>` (16+ chars; a dedicated key, so it
 // can't reach the MCP endpoint or trigger a sync).
 // Query: `from`, `to` (YYYY-MM-DD, inclusive; at most 92 days; default: the
 // latest 7 synced days).
@@ -24,7 +24,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     send(res, 405, { error: "method not allowed" }, { allow: "GET" });
     return;
   }
-  const key = process.env.READ_API_KEY;
+  const key = process.env.TOTEM_READ_API_KEY;
   if (!key || key.length < MIN_KEY_LENGTH || !matchesSecret(bearerToken(req.headers.authorization), key)) {
     send(res, 401, { error: "unauthorized" }, { "www-authenticate": "Bearer" });
     return;
