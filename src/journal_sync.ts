@@ -60,21 +60,25 @@ export class PgJournalStore implements JournalStore {
             notes = EXCLUDED.notes,
             synced_at = now()`,
       sql`INSERT INTO whoop_journal_behaviours
-            (date, behavior_tracker_id, title, category, internal_name, answered_yes,
-             magnitude_value, magnitude_label, recorded_at, synced_at)
+            (date, behavior_tracker_id, title, question, question_source, category, internal_name,
+             answered_yes, magnitude_value, magnitude_label, recorded_at, synced_at)
           SELECT ${day.date}::date, t.*, now() FROM unnest(
             ${b.map((x) => x.behavior_tracker_id)}::int[],
             ${b.map((x) => x.title)}::text[],
+            ${b.map((x) => x.question)}::text[],
+            ${b.map((x) => x.question_source)}::text[],
             ${b.map((x) => x.category)}::text[],
             ${b.map((x) => x.internal_name)}::text[],
             ${b.map((x) => x.answered_yes)}::boolean[],
             ${b.map((x) => x.magnitude_value)}::float8[],
             ${b.map((x) => x.magnitude_label)}::text[],
             ${b.map((x) => x.recorded_at)}::timestamptz[]
-          ) AS t(behavior_tracker_id, title, category, internal_name, answered_yes,
-                 magnitude_value, magnitude_label, recorded_at)
+          ) AS t(behavior_tracker_id, title, question, question_source, category, internal_name,
+                 answered_yes, magnitude_value, magnitude_label, recorded_at)
           ON CONFLICT (date, behavior_tracker_id) DO UPDATE SET
             title = EXCLUDED.title,
+            question = EXCLUDED.question,
+            question_source = EXCLUDED.question_source,
             category = EXCLUDED.category,
             internal_name = EXCLUDED.internal_name,
             answered_yes = EXCLUDED.answered_yes,

@@ -261,7 +261,7 @@ Your journal entry for a date — every tracked behavior with its value, magnitu
 
 - **Input:** `{date?: string}`
 - **Source:** `GET /journal-service/v3/journals/drafts/mobile/{date}` (NOT the misleadingly-named v2 endpoint, which returns the catalog of *enabled* behaviors instead of the day's entries)
-- **Output:** `{date, cycle_id, journal_entry_id, notes, behaviors: [{behavior_tracker_id, title, category, internal_name, answered_yes, magnitude_value, magnitude_label, recorded_at}]}`
+- **Output:** `{date, cycle_id, journal_entry_id, notes, behaviors: [{behavior_tracker_id, title, question, question_source, category, internal_name, answered_yes, magnitude_value, magnitude_label, recorded_at}]}`. `question` is the question text from Whoop's response when present (`question_source: "whoop"`), otherwise from the bundled catalog (`"catalog"`), or `null`.
 
 #### `whoop_journal_catalog`
 Local lookup over the bundled 308-behavior catalog. Filter by category, magnitude type, or substring search.

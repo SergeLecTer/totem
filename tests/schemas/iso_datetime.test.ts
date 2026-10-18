@@ -39,6 +39,8 @@ describe("JournalOut with a populated +0000 recorded_at (the regression case)", 
         {
           behavior_tracker_id: 1,
           title: "Alcohol",
+          question: "Have any alcoholic drinks?",
+          question_source: "catalog",
           category: "Lifestyle",
           internal_name: "alcohol",
           answered_yes: true,

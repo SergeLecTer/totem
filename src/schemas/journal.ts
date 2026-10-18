@@ -22,6 +22,10 @@ export const JournalOut = z.object({
   behaviors: z.array(z.object({
     behavior_tracker_id: z.number().int(),
     title: z.string(),
+    /** Question text as the Whoop app asks it; see `question_source`. */
+    question: z.string().nullable(),
+    /** Where `question` came from: Whoop's own response, or the bundled catalog. */
+    question_source: z.enum(["whoop", "catalog"]).nullable(),
     category: z.string(),
     internal_name: z.string(),
     answered_yes: z.boolean().nullable(),
