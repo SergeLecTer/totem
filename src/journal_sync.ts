@@ -50,16 +50,16 @@ export class PgJournalStore implements JournalStore {
     const b = day.behaviors;
     await sql.transaction([
       // Drop behaviors that were removed from the entry since the last sync.
-      sql`DELETE FROM journal_behaviors
+      sql`DELETE FROM whoop_journal_behaviours
           WHERE date = ${day.date} AND NOT (behavior_tracker_id = ANY(${b.map((x) => x.behavior_tracker_id)}::int[]))`,
-      sql`INSERT INTO journal_entries (date, cycle_id, journal_entry_id, notes, synced_at)
+      sql`INSERT INTO whoop_journal_entries (date, cycle_id, journal_entry_id, notes, synced_at)
           VALUES (${day.date}, ${day.cycle_id}, ${day.journal_entry_id}, ${day.notes}, now())
           ON CONFLICT (date) DO UPDATE SET
             cycle_id = EXCLUDED.cycle_id,
             journal_entry_id = EXCLUDED.journal_entry_id,
             notes = EXCLUDED.notes,
             synced_at = now()`,
-      sql`INSERT INTO journal_behaviors
+      sql`INSERT INTO whoop_journal_behaviours
             (date, behavior_tracker_id, title, category, internal_name, answered_yes,
              magnitude_value, magnitude_label, recorded_at, synced_at)
           SELECT ${day.date}::date, t.*, now() FROM unnest(
